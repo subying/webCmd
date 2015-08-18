@@ -1,0 +1,11 @@
+{
+  "name": "webCmd",
+  "version": "1.0",
+  "author": "subying",
+  "description": "在网页上执行项目提交和构建命令",
+  "devDependencies": {},
+  "dependencies": {
+    "mime-types": "^2.1.4",
+    "socket.io": "^1.3.6"
+  }
+}

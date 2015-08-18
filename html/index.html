@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>图形化</title>
+    <link href="css/reset.css" rel="stylesheet" type="text/css">
+    <script src="js/socket.io-client/socket.io.js"></script>
+    <script src="js/jquery-2.1.4.min.js"></script>
+    <script src="js/avalon.modern.js"></script>
+    <style>
+        .main{
+            margin-top: 50px;
+            margin-bottom: 10px;
+        }
+        .log{
+            width:900px;
+            height: 500px;
+            overflow-y: auto;
+            border:1px dashed #333; 
+            margin-top: 10px;
+            background: #000;
+            color: #fff;
+            padding: 10px;
+        }
+        .log pre{
+            font-size: 14px;
+            font-family: verdana;
+        }
+        .box{
+            width: 150px;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+            border: 1px solid #ccc;
+            display: inline-block;
+            cursor: pointer;
+            margin: 20px 10px 0 0;
+        }
+        .box:hover{
+            border-color: green;
+            font-weight: bold;
+        }
+        .message{
+            height: 30px;
+            line-height: 30px;
+        }
+        .push-pad{
+            margin-top: 20px;
+        }
+        .menu-list{
+            line-height: 30px;
+            margin: 30px 0 0 0;
+             position: relative;
+            z-index: 10;
+        }
+        .menu-list li{
+            cursor: pointer;
+            padding: 15px 0;
+            width: 100px;
+            text-align: center;
+            background: #f5f5f5;
+        }
+        .menu-list li.selected{
+            border: 1px solid #666;
+            border-right: 0;
+        }
+        .con-tab{
+            border-left: 1px solid #666;
+            padding-left: 30px;
+            margin-left: -1px;
+            position: relative;
+            z-index: 9;
+        }
+        .pmsg{
+            width: 400px;
+            height: 26px;
+            line-height: 26px;
+        }
+        .pushBtn{
+            margin:0 0 0 20px;
+            height: 30px;
+            line-height: 30px;
+        }
+        .check-text{
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container main clearfix" ms-controller="task">
+        <ul class="fl menu-list" id="menu">
+            <li ms-repeat="menu" ms-class-selected="$index===0" ms-data-index="$index">{{el}}</li>
+        </ul>
+        <ul class="fl con-tab" id="tab">
+            <li ms-repeat="menu" ms-class-hidden="$index>0">
+                <p>
+                    <input class="box" type="button" ms-click="runTask(el,'gulp')" value="gulp" >
+                    <input class="box" type="button" ms-click="runTask(el,'build')" value="build" >
+                    <input class="box" type="button" ms-click="runTask(el,'status')" value="status" >
+                    <input class="box" type="button" ms-click="runTask(el,'diff')" value="src diff" >
+                </p>
+                <p class="push-pad">
+                    <label for="">分支：</label>
+                    <input type="text" placeholder="分支" class="pmsg check-text">
+                    <input class="pushBtn box" type="button" ms-click="checkout(el)" value="git checkout" >
+                </p>
+                <p class="push-pad">
+                    <label for="">分支：</label>
+                    <input type="text" placeholder="分支" class="pmsg check-text">
+                    <input class="pushBtn box" type="button" ms-click="pullTask(el)" value="git pull" >
+                </p>
+                <p class="push-pad">
+                    <label for="">提交注释：</label>
+                    <input type="text" placeholder="commit的注释文本" class="pmsg">
+                    <input type="button" class="pushBtn box" ms-click="pushTask(el)" value="git push">
+                    <input class="pushBtn box" type="button" ms-click="clear()" value="清空控制台" >
+                </p>
+                <div ms-class="{{el}}Message message"></div>
+                <div ms-class="{{el}}Log log"><div class="mlog"></div></div>
+            </li>
+        </ul>
+    </div>
+    <script>
+        var socket = io();
+        var taskModel = avalon.define({
+            $id: "task",
+            menu:[],
+            runTask: function (name,cmd){
+                socket.emit('exec',name+'|'+cmd);
+            },
+            pushTask: function(name){
+                var _elem = $(this),
+                    _msg = _elem.prev().val();
+
+                if(!_msg){
+                    alert('注释不能为空!');
+                    _elem.prev().focus();
+                    return false;
+                }
+
+                taskModel.runTask(name,'push-'+_msg);
+            },
+            pullTask: function(name){
+                var _elem = $(this),
+                    _msg = _elem.prev().val();
+
+                if(!_msg){
+                    alert('分支不能为空!');
+                    _elem.prev().focus();
+                    return false;
+                }
+
+                taskModel.runTask(name,'pull-'+_msg);
+            },
+            checkout: function(name){
+                var _elem = $(this),
+                    _msg = _elem.prev().val();
+
+                if(!_msg){
+                    alert('分支不能为空!');
+                    _elem.prev().focus();
+                    return false;
+                }
+
+                taskModel.runTask(name,'checkout-'+_msg);
+            },
+            clear: function(){
+                var _elem = $(this),
+                    _log = _elem.parents('li').find('.mlog');
+
+                _log.html('');
+            }
+        });
+
+        $.getJSON('config.json',function(data){
+            var _obj = data.task,
+                _arr = [],
+                menu = $('#menu')
+                tab = $('#tab');
+            $.each(_obj,function(name,value){
+                _arr.push(name);
+                socket.on('exec-'+name,function(msg){
+                    $('.'+ name +'Message').html(msg);
+                })
+                .on('log-'+name,function(msg){
+                    var logElem = $('.'+ name +'Log'),
+                        _chilElem = logElem.children();
+                    _chilElem.append($('<pre>').text(msg));
+                    logElem.scrollTop(_chilElem.height());
+                });
+            });
+            taskModel.menu = _arr;
+
+            
+            menu.on('click','li',function(){
+                var _elem = $(this),
+                    _index = _elem.attr('data-index');
+
+                _elem.addClass('selected').siblings().removeClass('selected');
+                tab.children().addClass('hidden').eq(_index).removeClass('hidden');
+            });
+        });
+
+    </script>
+</body>
+</html>
