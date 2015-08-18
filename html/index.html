@@ -121,11 +121,35 @@
         </ul>
     </div>
     <script>
-        var socket = io();
+        var socket = io(),_isClose=false;
+        //监听 错误事件
+        socket.on('error',function(err){
+            console.log(err);
+        })
+        //监听 断开连接
+        .on('disconnect',function(){
+            //如果断开连接 则关闭
+            console.log('disconnect');
+            socket.close();
+            _isClose = true;
+        })
+        //监听 重新连接发生的错误 
+        .on('reconnect_error',function(){
+            console.log('reconnect_error');
+            socket.close();
+            _isClose = true;
+        });
+
         var taskModel = avalon.define({
             $id: "task",
             menu:[],
             runTask: function (name,cmd){
+                //如果关闭则打开
+                if(_isClose){
+                    socket.open();
+                    _isClose = false;
+                }
+
                 socket.emit('exec',name+'|'+cmd);
             },
             pushTask: function(name){
@@ -200,7 +224,6 @@
                 tab.children().addClass('hidden').eq(_index).removeClass('hidden');
             });
         });
-
     </script>
 </body>
 </html>

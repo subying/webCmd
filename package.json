@@ -1,6 +1,6 @@
 {
   "name": "webCmd",
-  "version": "1.0",
+  "version": "0.1.0",
   "author": "subying",
   "description": "在网页上执行项目提交和构建命令",
   "devDependencies": {},
